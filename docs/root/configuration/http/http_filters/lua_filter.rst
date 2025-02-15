@@ -1321,3 +1321,10 @@ field or if the field can't be converted to UTF8 string.
 
 Returns the string representation of O fields (as a table) from the X.509 name. Returns an empty
 table if there is no such field or if the field can't be converted to UTF8 string.
+
+``dataSources()``
+^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: lua
+
+  handle:dataSources()

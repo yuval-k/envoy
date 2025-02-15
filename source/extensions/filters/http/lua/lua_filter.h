@@ -5,6 +5,7 @@
 #include "envoy/stats/stats_macros.h"
 #include "envoy/upstream/cluster_manager.h"
 
+#include "source/common/config/datasource.h"
 #include "source/common/crypto/utility.h"
 #include "source/common/http/utility.h"
 #include "source/common/runtime/runtime_features.h"
@@ -183,6 +184,7 @@ public:
             {"bodyChunks", static_luaBodyChunks},
             {"trailers", static_luaTrailers},
             {"metadata", static_luaMetadata},
+            {"dataSources", static_luaDataSources},
             {"httpCall", static_luaHttpCall},
             {"respond", static_luaRespond},
             {"streamInfo", static_luaStreamInfo},
@@ -249,6 +251,11 @@ private:
    * @return a handle to the metadata.
    */
   DECLARE_LUA_FUNCTION(StreamHandleWrapper, luaMetadata);
+
+  /**
+   * @return data from a named data source.
+   */
+  DECLARE_LUA_FUNCTION(StreamHandleWrapper, luaDataSources);
 
   /**
    * @return a handle to the stream info.
@@ -396,14 +403,17 @@ public:
   void onBeforeFinalizeUpstreamSpan(Tracing::Span&, const Http::ResponseHeaderMap*) override {}
 };
 
+using DataSourcesMap = absl::flat_hash_map<std::string, Config::DataSource::DataSourceProviderPtr>;
+
 /**
  * Global configuration for the filter.
  */
 class FilterConfig : Logger::Loggable<Logger::Id::lua> {
 public:
   FilterConfig(const envoy::extensions::filters::http::lua::v3::Lua& proto_config,
-               ThreadLocal::SlotAllocator& tls, Upstream::ClusterManager& cluster_manager,
-               Api::Api& api, Stats::Scope& scope, const std::string& stat_prefix);
+               ThreadLocal::SlotAllocator& tls, Event::Dispatcher& main_thread_dispatcher,
+               Upstream::ClusterManager& cluster_manager, Api::Api& api, Stats::Scope& scope,
+               const std::string& stat_prefix);
 
   PerLuaCodeSetup* perLuaCodeSetup(absl::optional<absl::string_view> name = absl::nullopt) const {
     if (!name.has_value()) {
@@ -421,6 +431,7 @@ public:
   const LuaFilterStats& stats() const { return stats_; }
 
   Upstream::ClusterManager& cluster_manager_;
+  DataSourcesMap data_sources_;
 
 private:
   LuaFilterStats generateStats(const std::string& prefix, const std::string& filter_stats_prefix,
@@ -492,6 +503,7 @@ public:
       : config_(config), time_source_(time_source), stats_(config->stats()) {}
 
   Upstream::ClusterManager& clusterManager() { return config_->cluster_manager_; }
+  DataSourcesMap& dataSoruces() { return config_->data_sources_; }
   void scriptError(const Filters::Common::Lua::LuaException& e);
 
   // Http::StreamFilterBase

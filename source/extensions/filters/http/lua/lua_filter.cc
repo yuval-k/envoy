@@ -12,7 +12,6 @@
 #include "source/common/buffer/buffer_impl.h"
 #include "source/common/common/assert.h"
 #include "source/common/common/enum_to_int.h"
-#include "source/common/config/datasource.h"
 #include "source/common/crypto/crypto_impl.h"
 #include "source/common/crypto/utility.h"
 #include "source/common/http/message_impl.h"
@@ -630,6 +629,22 @@ int StreamHandleWrapper::luaMetadata(lua_State* state) {
   return 1;
 }
 
+int StreamHandleWrapper::luaDataSources(lua_State* state) {
+  ASSERT(state_ == State::Running);
+
+  absl::string_view name = Filters::Common::Lua::getStringViewFromLuaString(state, 2);
+  const auto& data_sources = filter_.dataSoruces();
+
+  auto it = data_sources.find(name);
+  if (it == data_sources.end()) {
+    lua_pushlstring(state, "", 0);
+    return 1;
+  }
+  const std::string& output = it->second->data();
+  lua_pushlstring(state, output.data(), output.size());
+  return 1;
+}
+
 int StreamHandleWrapper::luaStreamInfo(lua_State* state) {
   ASSERT(state_ == State::Running);
   if (stream_info_wrapper_.get() != nullptr) {
@@ -792,6 +807,7 @@ StreamHandleWrapper::getTimestampResolution(absl::string_view unit_parameter) {
 
 FilterConfig::FilterConfig(const envoy::extensions::filters::http::lua::v3::Lua& proto_config,
                            ThreadLocal::SlotAllocator& tls,
+                           Event::Dispatcher& main_thread_dispatcher,
                            Upstream::ClusterManager& cluster_manager, Api::Api& api,
                            Stats::Scope& scope, const std::string& stats_prefix)
     : cluster_manager_(cluster_manager),
@@ -819,6 +835,20 @@ FilterConfig::FilterConfig(const envoy::extensions::filters::http::lua::v3::Lua&
       continue;
     }
     per_lua_code_setups_map_[source.first] = std::move(per_lua_code_setup_ptr);
+  }
+
+  uint32_t max_size = 4096;
+  // TODO: Make this configurable.
+  const auto& data_sources = proto_config.data_sources();
+  for (auto it = data_sources.begin(); it != data_sources.end(); it++) {
+    auto provider_or_error = Envoy::Config::DataSource::DataSourceProvider::create(
+        it->second, main_thread_dispatcher, tls, api, true, max_size);
+    if (provider_or_error.ok()) {
+      data_sources_.emplace(std::make_pair(it->first, std::move(provider_or_error.value())));
+    } else {
+      throw EnvoyException(fmt::format("Failed to create data source provider '{}': {}", it->first,
+                                       provider_or_error.status().message()));
+    }
   }
 }
 

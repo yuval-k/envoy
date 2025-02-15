@@ -87,6 +87,10 @@ message Lua {
   // route cache automatically.
   // Default is true for backward compatibility.
   google.protobuf.BoolValue clear_route_cache = 5;
+
+  // The set of data sources that can be used by the Lua filter using the "dataSources" function.
+  map<string, envoy.config.core.v3.DataSource> data_sources = 6;
+
 }
 
 message LuaPerRoute {

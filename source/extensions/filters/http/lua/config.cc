@@ -16,9 +16,9 @@ absl::StatusOr<Http::FilterFactoryCb> LuaFilterConfig::createFilterFactoryFromPr
     const std::string& stats_prefix, DualInfo info,
     Server::Configuration::ServerFactoryContext& context) {
 
-  FilterConfigConstSharedPtr filter_config(new FilterConfig{proto_config, context.threadLocal(),
-                                                            context.clusterManager(), context.api(),
-                                                            info.scope, stats_prefix});
+  FilterConfigConstSharedPtr filter_config(
+      new FilterConfig{proto_config, context.threadLocal(), context.mainThreadDispatcher(),
+                       context.clusterManager(), context.api(), info.scope, stats_prefix});
   auto& time_source = context.mainThreadDispatcher().timeSource();
   return [filter_config, &time_source](Http::FilterChainFactoryCallbacks& callbacks) -> void {
     callbacks.addStreamFilter(std::make_shared<Filter>(filter_config, time_source));

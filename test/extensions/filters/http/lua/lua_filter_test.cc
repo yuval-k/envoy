@@ -85,8 +85,9 @@ public:
       const envoy::extensions::filters::http::lua::v3::Lua& proto_config,
       const envoy::extensions::filters::http::lua::v3::LuaPerRoute& per_route_proto_config) {
     // Setup filter config for Lua filter.
-    config_ = std::make_shared<FilterConfig>(proto_config, tls_, cluster_manager_, api_,
-                                             *stats_store_.rootScope(), "test.");
+    config_ =
+        std::make_shared<FilterConfig>(proto_config, tls_, server_factory_context_.dispatcher_,
+                                       cluster_manager_, api_, *stats_store_.rootScope(), "test.");
     // Setup per route config for Lua filter.
     per_route_config_ =
         std::make_shared<FilterConfigPerRoute>(per_route_proto_config, server_factory_context_);
@@ -233,14 +234,15 @@ TEST(LuaHttpFilterConfigTest, BadCode) {
   NiceMock<Upstream::MockClusterManager> cluster_manager;
   NiceMock<Api::MockApi> api;
   NiceMock<Stats::MockIsolatedStatsStore> stats_store;
+  testing::NiceMock<Event::MockDispatcher> dispatcher;
 
   envoy::extensions::filters::http::lua::v3::Lua proto_config;
   proto_config.mutable_default_source_code()->set_inline_string(SCRIPT);
 
-  EXPECT_THROW_WITH_MESSAGE(
-      FilterConfig(proto_config, tls, cluster_manager, api, *stats_store.rootScope(), "lua"),
-      Filters::Common::Lua::LuaException,
-      "script load error: [string \"...\"]:3: '=' expected near '<eof>'");
+  EXPECT_THROW_WITH_MESSAGE(FilterConfig(proto_config, tls, dispatcher, cluster_manager, api,
+                                         *stats_store.rootScope(), "lua"),
+                            Filters::Common::Lua::LuaException,
+                            "script load error: [string \"...\"]:3: '=' expected near '<eof>'");
 }
 
 // Script touching headers only, request that is headers only.
