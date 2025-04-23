@@ -631,17 +631,11 @@ int StreamHandleWrapper::luaMetadata(lua_State* state) {
 
 int StreamHandleWrapper::luaDataSources(lua_State* state) {
   ASSERT(state_ == State::Running);
-
-  absl::string_view name = Filters::Common::Lua::getStringViewFromLuaString(state, 2);
-  const auto& data_sources = filter_.dataSoruces();
-
-  auto it = data_sources.find(name);
-  if (it == data_sources.end()) {
-    lua_pushlstring(state, "", 0);
-    return 1;
+  if (data_source_wrapper_.get() != nullptr) {
+    data_source_wrapper_.pushStack();
+  } else {
+    data_source_wrapper_.reset(DataSourceMapWrapper::create(state, callbacks_.metadata()), true);
   }
-  const std::string& output = it->second->data();
-  lua_pushlstring(state, output.data(), output.size());
   return 1;
 }
 

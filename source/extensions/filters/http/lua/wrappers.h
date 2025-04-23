@@ -5,6 +5,7 @@
 
 #include "source/common/crypto/utility.h"
 #include "source/extensions/filters/common/lua/lua.h"
+#include "source/common/config/datasource.h"
 #include "source/extensions/filters/common/lua/wrappers.h"
 
 #include "openssl/evp.h"
@@ -13,6 +14,8 @@ namespace Envoy {
 namespace Extensions {
 namespace HttpFilters {
 namespace Lua {
+
+using DataSourcesMap = absl::flat_hash_map<std::string, Config::DataSource::DataSourceProviderPtr>;
 
 class HeaderMapWrapper;
 
@@ -126,6 +129,29 @@ private:
   Filters::Common::Lua::LuaDeathRef<HeaderMapIterator> iterator_;
 
   friend class HeaderMapIterator;
+};
+
+/**
+ * Lua wrapper for a metadata map.
+ */
+class DataSourceMapWrapper : public Filters::Common::Lua::BaseLuaObject<DataSourceMapWrapper> {
+public:
+  DataSourceMapWrapper(const DataSourcesMap& metadata) : metadata_{metadata} {}
+
+  static ExportedFunctions exportedFunctions() {
+    return {{"get", static_luaGet}};
+  }
+
+private:
+  /**
+   * Get a metadata value from the map.
+   * @param 1 (string): filter.
+   * @return string value if found or nil.
+   */
+  DECLARE_LUA_FUNCTION(DataSourceMapWrapper, luaGet);
+
+
+  const DataSourcesMap& data_sources_;
 };
 
 class DynamicMetadataMapWrapper;

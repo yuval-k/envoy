@@ -1,4 +1,4 @@
-#include "source/extensions/filters/http/lua/wrappers.h"
+d#include "source/extensions/filters/http/lua/wrappers.h"
 
 #include "source/common/http/header_map_impl.h"
 #include "source/common/http/header_utility.h"
@@ -152,6 +152,18 @@ int HeaderMapWrapper::luaSetHttp1ReasonPhrase(lua_State* state) {
   }
 
   return 0;
+}
+
+int DataSourceMapWrapper::luaGet(lua_State* state) {
+  absl::string_view key = Filters::Common::Lua::getStringViewFromLuaString(state, 2);
+
+  auto it = data_sources_.find(name);
+  if (it == data_sources_.end()) {
+    return 0;
+  }
+  const std::string& output = it->second->data();
+  lua_pushlstring(state, output.data(), output.size());
+  return 1;
 }
 
 int StreamInfoWrapper::luaProtocol(lua_State* state) {
